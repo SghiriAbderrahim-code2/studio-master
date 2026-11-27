@@ -1,80 +1,89 @@
 
 "use server";
 
-import type { Episode, SimplifiedYouTubeSearchItem } from '@/types';
-import { generateEpisodeSearchQuery } from '@/ai/flows/generate-episode-search-query';
-import { filterYouTubeResults } from '@/ai/flows/filter-youtube-results';
+import { z } from 'zod';
+import type { Episode } from '@/types';
 import { searchYouTube } from '@/lib/youtube';
 import { EXCLUDED_KEYWORDS, MINIMUM_DURATION_SECONDS } from '@/lib/utils';
+
+// Strict validation for anything coming from the client.
+const episodeRequestSchema = z.object({
+  cartoonTitle: z.string().trim().min(1).max(200),
+  episodeNumber: z.number().int().min(1).max(100000),
+});
+
+function notFoundEpisode(episodeNumber: number, title: string, thumbnailText: string): Episode {
+  return {
+    episodeNumber,
+    title,
+    link: '#',
+    duration: 0,
+    thumbnail: `https://placehold.co/480x360.png?text=${thumbnailText}`,
+    status: 'Not Found',
+  };
+}
+
+function isExcluded(title: string): boolean {
+  const lower = title.toLowerCase();
+  return EXCLUDED_KEYWORDS.some((keyword) => lower.includes(keyword.toLowerCase()));
+}
 
 export async function fetchSingleEpisodeDetails(
   cartoonTitle: string,
   episodeNumber: number
 ): Promise<Episode> {
-  try {
-    const searchQueryOutput = await generateEpisodeSearchQuery({
-      cartoonTitle,
-      episodeNumber,
-    });
-    const searchQuery = searchQueryOutput.searchQuery;
+  const parsed = episodeRequestSchema.safeParse({ cartoonTitle, episodeNumber });
+  if (!parsed.success) {
+    return {
+      episodeNumber: Number.isFinite(episodeNumber) ? episodeNumber : 0,
+      title: `الحلقة ${episodeNumber} - مدخلات غير صالحة`,
+      link: '#',
+      duration: 0,
+      thumbnail: `https://placehold.co/480x360.png?text=Invalid+Input`,
+      status: 'Error',
+    };
+  }
 
+  const title = parsed.data.cartoonTitle;
+  const ep = parsed.data.episodeNumber;
+
+  try {
+    // Deterministic search query: cartoon title + episode number.
+    const searchQuery = `${title} الحلقة ${ep}`;
     const searchResults = await searchYouTube(searchQuery);
 
     if (searchResults.length === 0) {
-      return {
-        episodeNumber,
-        title: `الحلقة ${episodeNumber} - لم يتم العثور على نتائج`,
-        link: '#',
-        duration: 0,
-        thumbnail: `https://placehold.co/480x360.png?text=Not+Found`,
-        status: 'Not Found',
-      };
+      return notFoundEpisode(ep, `الحلقة ${ep} - لم يتم العثور على نتائج`, 'Not+Found');
     }
-    
-    // youtube-sr results are already simplified: { videoId, title, duration (seconds), thumbnail }
-    const candidateVideos = searchResults.map(item => ({
-        videoId: item.videoId,
-        title: item.title,
-        duration: item.duration, // Already in seconds
-      }));
 
-    const filteredResults = await filterYouTubeResults({
-      results: candidateVideos,
-      excludedKeywords: EXCLUDED_KEYWORDS,
-      minimumDuration: MINIMUM_DURATION_SECONDS,
-    });
+    // Local, deterministic filtering: minimum duration + excluded keywords.
+    const candidates = searchResults.filter(
+      (video) => video.duration >= MINIMUM_DURATION_SECONDS && !isExcluded(video.title)
+    );
 
-    if (filteredResults.length > 0) {
-      const chosenVideo = filteredResults[0];
-      // Find the original search result to get its thumbnail
-      const originalVideoData = searchResults.find(sr => sr.videoId === chosenVideo.videoId);
-      
-      return {
-        episodeNumber,
-        title: chosenVideo.title,
-        link: `https://www.youtube.com/watch?v=${chosenVideo.videoId}`,
-        duration: chosenVideo.duration,
-        thumbnail: originalVideoData?.thumbnail ?? `https://i.ytimg.com/vi/${chosenVideo.videoId}/hqdefault.jpg`,
-        status: 'Found',
-        youtubeVideoId: chosenVideo.videoId,
-      };
-    } else {
-      return {
-        episodeNumber,
-        title: `الحلقة ${episodeNumber} - لم يتم العثور على فيديو مناسب`,
-        link: '#',
-        duration: 0,
-        thumbnail: `https://placehold.co/480x360.png?text=No+Match`,
-        status: 'Not Found',
-      };
+    if (candidates.length === 0) {
+      return notFoundEpisode(ep, `الحلقة ${ep} - لم يتم العثور على فيديو مناسب`, 'No+Match');
     }
-  } catch (error: any) {
-    console.error(`Error fetching episode ${episodeNumber} for ${cartoonTitle}:`, error.message);
-    // With youtube-sr, quota errors are less likely. Errors might be network or parsing.
-    // For simplicity, treating all errors from youtube-sr as general search errors.
+
+    // Prefer results whose title mentions the exact episode number.
+    const episodePattern = new RegExp(`(^|[^0-9])${ep}([^0-9]|$)`);
+    const chosen = candidates.find((video) => episodePattern.test(video.title)) ?? candidates[0];
+
     return {
-      episodeNumber,
-      title: `الحلقة ${episodeNumber} - خطأ في البحث`,
+      episodeNumber: ep,
+      title: chosen.title,
+      link: `https://www.youtube.com/watch?v=${chosen.videoId}`,
+      duration: chosen.duration,
+      thumbnail: chosen.thumbnail || `https://i.ytimg.com/vi/${chosen.videoId}/hqdefault.jpg`,
+      status: 'Found',
+      youtubeVideoId: chosen.videoId,
+    };
+  } catch (error: any) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Error fetching episode ${ep} for ${title}:`, message);
+    return {
+      episodeNumber: ep,
+      title: `الحلقة ${ep} - خطأ في البحث`,
       link: '#',
       duration: 0,
       thumbnail: `https://placehold.co/480x360.png?text=Error`,

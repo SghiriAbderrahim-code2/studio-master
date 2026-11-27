@@ -27,3 +27,4 @@ export function formatDuration(totalSeconds: number): string {
 
 export const EXCLUDED_KEYWORDS = ["AMV", "تحليل", "reaction", "recap", "trailer", "teaser", "promo", "opening", "ending", "ost", "soundtrack", "review", "ملخص", "مراجعه", "اعلان", "مقدمة", "نهاية"];
 export const MINIMUM_DURATION_SECONDS = 15 * 60; // 15 minutes
+export const MAX_EPISODES_PER_REQUEST = 100; // Upper bound per search to keep requests fast and safe

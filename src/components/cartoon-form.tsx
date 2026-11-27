@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { MAX_EPISODES_PER_REQUEST } from '@/lib/utils';
 
 interface CartoonFormProps {
   onFetchEpisodes: (title: string, startEpisode: number, endEpisode: number) => void;
@@ -53,6 +54,14 @@ export function CartoonForm({ onFetchEpisodes, isFetching }: CartoonFormProps) {
     }
     if (startNum > endNum) {
       toast({ title: "خطأ", description: "يجب أن تكون 'من الحلقة' أصغر من أو تساوي 'إلى الحلقة'.", variant: "destructive" });
+      return;
+    }
+    if (endNum - startNum + 1 > MAX_EPISODES_PER_REQUEST) {
+      toast({
+        title: "النطاق كبير جدًا",
+        description: `الحد الأقصى ${MAX_EPISODES_PER_REQUEST} حلقة في العملية الواحدة. يرجى تقسيم الطلب إلى نطاقات أصغر.`,
+        variant: "destructive",
+      });
       return;
     }
 

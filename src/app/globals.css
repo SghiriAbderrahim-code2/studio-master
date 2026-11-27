@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: var(--font-pt-sans), sans-serif;
-}
-
 @layer base {
   :root {
     --background: 210 10% 10%; /* Near Black */

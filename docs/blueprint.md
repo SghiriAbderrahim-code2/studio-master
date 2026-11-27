@@ -3,8 +3,8 @@
 ## Core Features:
 
 - Cartoon Input: Input fields for cartoon title and episode count.
-- Generate Queries: Generates search queries by combining the cartoon title with the episode number.
-- Fetch YouTube Links: Connects to the YouTube API using the user-provided API key `AIzaSyCK6KivEFoC2Mpp0TI2ieobAdwQ9xuk0Y8`, searches for episodes, filters videos to include those longer than 15 minutes, and excludes videos with unwanted keywords.  The filtering process may use the generated search queries as a tool for exclusion of noise.
+- Generate Queries: Builds search queries by combining the cartoon title with the episode number (plain code, no AI required).
+- Fetch YouTube Links: Searches YouTube directly with youtube-sr (no API key required), then keeps videos at least 15 minutes long and excludes videos with unwanted keywords. All filtering happens locally in code.
 - Display Episodes: Displays a list of cartoon episodes with the episode number, video duration, thumbnail, and video link.
 - Export and Share: Offers buttons to download results as a PDF, copy all links, and share the result by generating a direct link containing the search query.
 - Loading Status: Show loading status for each episode as "Searching" then "Done". Also shows the loading progress bar during the fetching.

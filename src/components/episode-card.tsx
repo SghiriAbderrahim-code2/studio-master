@@ -11,9 +11,10 @@ import { Clapperboard, AlertCircle, CheckCircle, Hourglass, Link as LinkIcon, Re
 interface EpisodeCardProps {
   episode: Episode;
   onReload?: (episodeNumber: number) => void;
+  disableReload?: boolean;
 }
 
-export function EpisodeCard({ episode, onReload }: EpisodeCardProps) {
+export function EpisodeCard({ episode, onReload, disableReload }: EpisodeCardProps) {
   const getStatusIcon = () => {
     switch (episode.status) {
       case 'Searching...':
@@ -55,7 +56,7 @@ export function EpisodeCard({ episode, onReload }: EpisodeCardProps) {
       </CardHeader>
       <CardContent className="p-4 flex-grow">
         <CardTitle className="text-lg font-headline mb-1 leading-tight h-12 overflow-hidden">
-          <span className="font-bold">حلقة {episode.episodeNumber}:</span> {episode.title.substring(0,100)}${episode.title.length > 100 ? '...' : ''}
+          <span className="font-bold">حلقة {episode.episodeNumber}:</span> {episode.title.substring(0, 100)}{episode.title.length > 100 ? '...' : ''}
         </CardTitle>
         <div className="text-sm text-muted-foreground flex items-center space-x-2 space-x-reverse mt-2">
           {episode.status !== 'Searching...' && getStatusIcon()}
@@ -66,8 +67,8 @@ export function EpisodeCard({ episode, onReload }: EpisodeCardProps) {
                 size="icon"
                 className="h-6 w-6 p-0 ml-2 rtl:mr-2 ltr:ml-2"
                 onClick={() => onReload(episode.episodeNumber)}
-                disabled={episode.status === 'Searching...'}
-                title="إعادة تحميل الحلقة"
+                disabled={episode.status === 'Searching...' || disableReload}
+                title={disableReload ? "أوقف البحث الحالي أولاً لإعادة تحميل الحلقة" : "إعادة تحميل الحلقة"}
             >
                 <RefreshCw className={`h-4 w-4 ${episode.status === 'Searching...' ? 'animate-spin' : ''}`} />
             </Button>
